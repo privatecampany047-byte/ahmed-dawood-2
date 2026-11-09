@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام إدارة الطلاب - Ahmed Dawood</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Cairo', sans-serif; background-color: #0b0c10; color: #c5c6c7; }
+    .gold-gradient { background: linear-gradient(135deg, #f39c12 0%, #d4af37 50%, #aa771c 100%); }
+    .gold-text { background: linear-gradient(135deg, #f39c12, #d4af37); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .card-bg { background-color: #1f2833; border: 1px solid rgba(212, 175, 55, 0.2); }
+    .input-field { background-color: #0b0c10; border: 1px solid #2c353d; color: #fff; }
+    .input-field:focus { border-color: #d4af37; outline: none; box-shadow: 0 0 10px rgba(212, 175, 55, 0.2); }
+    .grade-tab.active { background: linear-gradient(135deg, #f39c12, #d4af37); color: #000; font-weight: bold; border-color: transparent; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 md:p-8">
+
+  <div class="w-full max-w-5xl mx-auto">
+    <!-- شاشة تسجيل الدخول -->
+    <div id="authScreen" class="max-w-md mx-auto mt-20 card-bg p-8 rounded-2xl shadow-2xl">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl font-black gold-text mb-2">Ahmed Dawood</h2>
+        <p class="text-sm text-gray-400">نظام إدارة وتحصيل اشتراكات الطلاب</p>
+      </div>
+      <input type="email" id="email" placeholder="البريد الإلكتروني" class="w-full p-3 mb-4 rounded-xl input-field" value="ahmed@gmail.com">
+      <input type="password" id="password" placeholder="كلمة المرور" class="w-full p-3 mb-6 rounded-xl input-field" value="ahmed#70007">
+      <button id="loginBtn" class="w-full py-3 rounded-xl gold-gradient text-black font-bold mb-3 shadow-lg hover:opacity-95 transition">تسجيل الدخول</button>
+      <div class="mt-4 text-center text-xs text-gray-500 font-mono">الدعم الفني: 01013587867</div>
+    </div>
+
+    <!-- لوحة التحكم الرئيسية -->
+    <div id="dashboardScreen" class="hidden">
+      <!-- الهيدر -->
+      <div class="flex justify-between items-center mb-6 card-bg p-5 rounded-2xl shadow-xl">
+        <div>
+          <h1 class="text-2xl font-black gold-text">Ahmed Dawood</h1>
+          <p class="text-xs text-gray-400 mt-1">لوحة متابعة تحصيل المصروفات والشهور</p>
+        </div>
+        <button id="logoutBtn" class="px-4 py-2 bg-red-600/20 text-red-400 border border-red-600/40 rounded-xl hover:bg-red-600 hover:text-white transition font-semibold text-sm">تسجيل الخروج</button>
+      </div>
+
+      <!-- بطاقات الإحصائيات السريعة -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="card-bg p-5 rounded-2xl shadow-lg border-l-4 border-amber-500 flex items-center justify-between">
+          <div>
+            <p class="text-xs text-gray-400 mb-1">إجمالي عدد الطلاب</p>
+            <h3 class="text-2xl font-black text-white" id="totalStudentsCount">0</h3>
+          </div>
+          <div class="p-3 bg-amber-500/10 rounded-xl text-amber-400 text-xl font-bold">👥</div>
+        </div>
+        <div class="card-bg p-5 rounded-2xl shadow-lg border-l-4 border-emerald-500 flex items-center justify-between">
+          <div>
+            <p class="text-xs text-gray-400 mb-1">طلاب دفعوا اشتراكات</p>
+            <h3 class="text-2xl font-black text-emerald-400" id="paidStudentsCount">0</h3>
+          </div>
+          <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 text-xl font-bold">✅</div>
+        </div>
+        <div class="card-bg p-5 rounded-2xl shadow-lg border-l-4 border-red-500 flex items-center justify-between">
+          <div>
+            <p class="text-xs text-gray-400 mb-1">لم يدفعوا أي شهر</p>
+            <h3 class="text-2xl font-black text-red-400" id="unpaidStudentsCount">0</h3>
+          </div>
+          <div class="p-3 bg-red-500/10 rounded-xl text-red-400 text-xl font-bold">⚠️</div>
+        </div>
+      </div>
+
+      <!-- إضافة طالب جديد -->
+      <div class="card-bg p-6 rounded-2xl mb-8 shadow-xl">
+        <h3 class="text-lg font-bold mb-4 text-white flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span> إضافة طالب جديد
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <input type="text" id="studentName" placeholder="اسم الطالب" class="p-3 rounded-xl input-field">
+          <input type="text" id="parentPhone" placeholder="رقم ولي الأمر (واتساب)" class="p-3 rounded-xl input-field">
+          <select id="studentGrade" class="p-3 rounded-xl input-field text-sm">
+            <option value="الأول الإعدادي">الأول الإعدادي</option>
+            <option value="الثاني الإعدادي">الثاني الإعدادي</option>
+            <option value="الثالث الإعدادي">الثالث الإعدادي</option>
+            <option value="الأول الثانوي">الأول الثانوي</option>
+            <option value="الثاني الثانوي">الثاني الثانوي</option>
+            <option value="الثالث الثانوي (البكالوريا)">الثالث الثانوي (البكالوريا)</option>
+          </select>
+          <input type="date" id="joinDate" class="p-3 rounded-xl input-field">
+        </div>
+        <button id="addStudentBtn" class="px-6 py-3 rounded-xl gold-gradient text-black font-bold shadow-md hover:opacity-95 transition">حفظ الطالب وتسجيل الدفع</button>
+      </div>
+
+      <!-- شريط البحث وأزرار تصفية المراحل الدراسية -->
+      <div class="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <input type="text" id="searchInput" placeholder="ابحث باسم الطالب أو رقم ولي الأمر..." class="w-full md:w-1/2 p-4 rounded-xl card-bg input-field shadow">
+        
+        <!-- أزرار الفلترة حسب الصف -->
+        <div id="gradeTabs" class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+          <button onclick="filterByGrade('الكل')" class="grade-tab active px-3 py-2 rounded-xl text-xs card-bg border border-amber-500/30 hover:border-amber-500 transition">الكل</button>
+          <button onclick="filterByGrade('الأول الإعدادي')" class="grade-tab px-3 py-2 rounded-xl text-xs card-bg border border-gray-800 hover:border-amber-500 transition">1 إعدادي</button>
+          <button onclick="filterByGrade('الثاني الإعدادي')" class="grade-tab px-3 py-2 rounded-xl text-xs card-bg border border-gray-800 hover:border-amber-500 transition">2 إعدادي</button>
+          <button onclick="filterByGrade('الثالث الإعدادي')" class="grade-tab px-3 py-2 rounded-xl text-xs card-bg border border-gray-800 hover:border-amber-500 transition">3 إعدادي</button>
+          <button onclick="filterByGrade('الأول الثانوي')" class="grade-tab px-3 py-2 rounded-xl text-xs card-bg border border-gray-800 hover:border-amber-500 transition">1 ثانوي</button>
+          <button onclick="filterByGrade('الثاني الثانوي')" class="grade-tab px-3 py-2 rounded-xl text-xs card-bg border border-gray-800 hover:border-amber-500 transition">2 ثانوي</button>
+          <button onclick="filterByGrade('الثالث الثانوي (البكالوريا)')" class="grade-tab px-3 py-2 rounded-xl text-xs card-bg border border-gray-800 hover:border-amber-500 transition">البكالوريا</button>
+        </div>
+      </div>
+
+      <!-- جدول عرض الطلاب -->
+      <div class="card-bg rounded-2xl overflow-hidden shadow-xl">
+        <table class="w-full text-right border-collapse">
+          <thead>
+            <tr class="bg-black/40 border-b border-gray-800 text-amber-400">
+              <th class="p-4">اسم الطالب</th>
+              <th class="p-4">رقم ولي الأمر</th>
+              <th class="p-4">المرحلة الدراسية</th>
+              <th class="p-4">تاريخ التسجيل</th>
+              <th class="p-4">الشهور المدفوعة</th>
+              <th class="p-4">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTableBody">
+            <!-- البيانات تظهر هنا تلقائياً -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- النافذة المنبثقة لتعديل شهور الطالب والتاريخ -->
+  <div id="editModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="card-bg p-6 rounded-2xl max-w-lg w-full shadow-2xl">
+      <h3 class="text-xl font-bold text-amber-400 mb-2" id="modalStudentName">تعديل شهور الطالب</h3>
+      <p class="text-xs text-gray-400 mb-4">حدد الشهور المدفوعة وتاريخ التسجيل:</p>
+      
+      <div class="mb-4">
+        <label class="block text-xs text-gray-300 mb-1">تاريخ تسجيل/دفع الطالب:</label>
+        <input type="date" id="modalJoinDate" class="w-full p-2.5 rounded-xl input-field text-sm">
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 mb-6" id="monthsGrid"></div>
+
+      <div class="flex justify-end gap-3">
+        <button id="closeModalBtn" class="px-4 py-2 bg-gray-700 text-white rounded-xl text-sm hover:bg-gray-600 transition">إلغاء</button>
+        <button id="saveChangesBtn" class="px-5 py-2 gold-gradient text-black font-bold rounded-xl text-sm shadow hover:opacity-95 transition">حفظ التغييرات</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- الفوتر -->
+  <footer class="w-full text-center py-6 mt-12 border-t border-gray-800 text-gray-500 text-sm">
+    Created by Omar Hadwa | Support: 01013587867
+  </footer>
+
+  <script>
+    const SUPABASE_URL = "https://xeqnilevfrqwsfgeqhoa.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_TP-6WHHWnmWMmOYXEkrQfA_mdn1rq41";
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let allStudents = [];
+    let currentEditStudentId = null;
+    let currentGradeFilter = 'الكل';
+
+    const allMonthsList = [
+      "شهر 1 (يناير)", "شهر 2 (فبراير)", "شهر 3 (مارس)", 
+      "شهر 4 (أبريل)", "شهر 5 (مايو)", "شهر 6 (يونيو)", 
+      "شهر 7 (يوليو)", "شهر 8 (أغسطس)", "شهر 9 (سبتمبر)", 
+      "شهر 10 (أكتوبر)", "شهر 11 (نوفمبر)", "شهر 12 (ديسمبر)"
+    ];
+
+    document.getElementById('joinDate').value = new Date().toISOString().split('T')[0];
+
+    if (localStorage.getItem('isLoggedIn') === 'true') {
+      showDashboard();
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      const email = document.getElementById('email').value.trim();
+      const pass = document.getElementById('password').value.trim();
+
+      if (email === "ahmed@gmail.com" && pass === "ahmed#70007") {
+        localStorage.setItem('isLoggedIn', 'true');
+        showDashboard();
+      } else {
+        alert("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('isLoggedIn');
+      document.getElementById('dashboardScreen').classList.add('hidden');
+      document.getElementById('authScreen').classList.remove('hidden');
+    });
+
+    function showDashboard() {
+      document.getElementById('authScreen').classList.add('hidden');
+      document.getElementById('dashboardScreen').classList.remove('hidden');
+      loadStudents();
+    }
+
+    document.getElementById('addStudentBtn').addEventListener('click', async () => {
+      const name = document.getElementById('studentName').value.trim();
+      const phone = document.getElementById('parentPhone').value.trim();
+      const grade = document.getElementById('studentGrade').value;
+      const joinDate = document.getElementById('joinDate').value;
+
+      if (!name || !phone) {
+        alert("الرجاء إدخال اسم الطالب ورقم ولي الأمر");
+        return;
+      }
+
+      const { error } = await supabase
+        .from('students')
+        .insert([{
+          name: name,
+          parent_phone: phone,
+          grade: grade,
+          months_paid: [],
+          join_date: joinDate || new Date().toISOString().split('T')[0]
+        }]);
+
+      if (error) {
+        alert("خطأ أثناء الحفظ: " + error.message);
+      } else {
+        document.getElementById('studentName').value = '';
+        document.getElementById('parentPhone').value = '';
+        alert("تم حفظ الطالب بنجاح!");
+        loadStudents();
+      }
+    });
+
+    async function loadStudents() {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) {
+        console.error("خطأ جلب البيانات:", error.message);
+        return;
+      }
+
+      allStudents = data || [];
+      updateStats(allStudents);
+      applyFilters();
+    }
+
+    function updateStats(students) {
+      const total = students.length;
+      const paid = students.filter(s => s.months_paid && s.months_paid.length > 0).length;
+      const unpaid = total - paid;
+
+      document.getElementById('totalStudentsCount').innerText = total;
+      document.getElementById('paidStudentsCount').innerText = paid;
+      document.getElementById('unpaidStudentsCount').innerText = unpaid;
+    }
+
+    window.filterByGrade = function(grade) {
+      currentGradeFilter = grade;
+      
+      // تحديث مظهر الأزرار
+      const buttons = document.querySelectorAll('.grade-tab');
+      buttons.forEach(btn => {
+        if (btn.innerText.includes(grade === 'الكل' ? 'الكل' : grade.replace('الإعدادي', 'إعدادي').replace('الثانوي', 'ثانوي').replace('الثالث الثانوي (البكالوريا)', 'البكالوريا'))) {
+          btn.classList.add('active');
+          btn.classList.remove('border-gray-800');
+        } else {
+          btn.classList.remove('active');
+          btn.classList.add('border-gray-800');
+        }
+      });
+
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      
+      let filtered = allStudents;
+
+      // فلترة بالصف الدراسي
+      if (currentGradeFilter !== 'الكل') {
+        filtered = filtered.filter(s => s.grade === currentGradeFilter);
+      }
+
+      // فلترة بالبحث النصي
+      if (searchTerm) {
+        filtered = filtered.filter(s => s.name.toLowerCase().includes(searchTerm) || s.parent_phone.includes(searchTerm));
+      }
+
+      renderTable(filtered);
+    }
+
+    document.getElementById('searchInput').addEventListener('input', () => {
+      applyFilters();
+    });
+
+    function renderTable(students) {
+      const tbody = document.getElementById('studentsTableBody');
+      tbody.innerHTML = '';
+      if (students.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500">لا توجد بيانات طلاب مسجلة في هذا الصف بعد</td></tr>`;
+        return;
+      }
+
+      students.forEach(s => {
+        const paidCount = s.months_paid ? s.months_paid.length : 0;
+        tbody.innerHTML += `
+          <tr class="border-b border-gray-800 hover:bg-black/20 transition">
+            <td class="p-4 font-semibold text-white">${s.name}</td>
+            <td class="p-4 text-amber-400 font-mono">${s.parent_phone}</td>
+            <td class="p-4 text-xs text-gray-300 font-bold"><span class="px-2.5 py-1 bg-black/40 rounded-lg border border-gray-800">${s.grade || 'غير محدد'}</span></td>
+            <td class="p-4 text-xs text-gray-400 font-mono">${s.join_date || 'غير محدد'}</td>
+            <td class="p-4">
+              <span class="px-3 py-1 bg-amber-500/10 text-amber-400 rounded-full text-xs border border-amber-500/20">
+                ${paidCount > 0 ? `دفع (${paidCount} شهور)` : 'لم يدفع أي شهر'}
+              </span>
+            </td>
+            <td class="p-4 flex gap-2">
+              <button onclick="openEditModal('${s.id}')" class="px-3 py-1 bg-amber-500/20 text-amber-300 rounded-lg hover:bg-amber-500 hover:text-black transition text-xs font-bold">تعديل الشهور</button>
+              <button onclick="deleteStudent('${s.id}')" class="px-3 py-1 bg-red-600/20 text-red-400 rounded-lg hover:bg-red-600 hover:text-white transition text-xs">حذف</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    window.openEditModal = function(id) {
+      const student = allStudents.find(s => s.id == id);
+      if (!student) return;
+
+      currentEditStudentId = id;
+      document.getElementById('modalStudentName').innerText = `تعديل شهور: ${student.name}`;
+      document.getElementById('modalJoinDate').value = student.join_date || new Date().toISOString().split('T')[0];
+
+      const grid = document.getElementById('monthsGrid');
+      grid.innerHTML = '';
+
+      const studentPaidMonths = student.months_paid || [];
+
+      allMonthsList.forEach(m => {
+        const isChecked = studentPaidMonths.includes(m);
+        grid.innerHTML += `
+          <label class="flex items-center gap-2 p-2 rounded-xl bg-black/40 border ${isChecked ? 'border-amber-500 bg-amber-500/10 text-amber-300' : 'border-gray-800 text-gray-400'} text-xs cursor-pointer hover:border-amber-500 transition">
+            <input type="checkbox" value="${m}" ${isChecked ? 'checked' : ''} class="month-checkbox accent-amber-500">
+            <span>${m}</span>
+          </label>
+        `;
+      });
+
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    document.getElementById('closeModalBtn').addEventListener('click', () => {
+      document.getElementById('editModal').classList.add('hidden');
+      currentEditStudentId = null;
+    });
+
+    document.getElementById('saveChangesBtn').addEventListener('click', async () => {
+      if (!currentEditStudentId) return;
+
+      const checkedBoxes = document.querySelectorAll('.month-checkbox:checked');
+      const selectedMonths = Array.from(checkedBoxes).map(cb => cb.value);
+      const newJoinDate = document.getElementById('modalJoinDate').value;
+
+      const { error } = await supabase
+        .from('students')
+        .update({
+          months_paid: selectedMonths,
+          join_date: newJoinDate
+        })
+        .eq('id', currentEditStudentId);
+
+      if (error) {
+        alert("خطأ أثناء التحديث: " + error.message);
+      } else {
+        document.getElementById('editModal').classList.add('hidden');
+        currentEditStudentId = null;
+        alert("تم تحديث الشهور بنجاح!");
+        loadStudents();
+      }
+    });
+
+    window.deleteStudent = async function(id) {
+      if (confirm("هل أنت متأكد من حذف هذا الطالب؟")) {
+        const { error } = await supabase
+          .from('students')
+          .delete()
+          .eq('id', id);
+
+        if (error) {
+          alert("خطأ أثناء الحذف: " + error.message);
+        } else {
+          loadStudents();
+        }
+      }
+    }
+  </script>
+</body>
+</html>
